@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MP3 Player with Scrolling Subtitles</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
+  #subtitle { 
+    position: fixed; 
+    width: 100%; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    margin: 0; 
+    padding: 0; 
+    font-size: 20px; 
+    color: #808080; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.5s ease-in-out;
+  }
+  .active { color: red; }
+  .inactive { color: gray; }
+ 
+</style>
+<script>
+function loadMedia() {
+  const fileInput = document.getElementById('fileInput');
+  const files = fileInput.files;
+  if (files.length === 0) return;
+
+  const audioFile = [...files].find(file => file.name.endsWith('.mp3'));
+  const subtitleFile = [...files].find(file => file.name.endsWith('.srt'));
+
+  if (audioFile) {
+    const audioPlayer = document.getElementById('audioPlayer');
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      audioPlayer.src = e.target.result;
+      audioPlayer.load();
+      audioPlayer.play();
+    };
+    reader.readAsDataURL(audioFile);
+  }
+
+  if (subtitleFile) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    window.subtitles = parseSubtitles(e.target.result);
+  };
+  reader.readAsText(subtitleFile); // UTF-8 formatında okuma yapar
+}
+
+}
+
+function parseSubtitles(srt) {
+  const pattern = /(\d+)\r?\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\r?\n([\s\S]*?(?=\r?\n\r?\n|\r?\n*$))/g;
+  const subtitles = [];
+  let match;
+  while (match = pattern.exec(srt)) {
+    const start = timeToSeconds(match[2]);
+    const end = timeToSeconds(match[3]);
+    subtitles.push({ start, end, text: match[4].trim() });
+  }
+  return subtitles;
+}
+
+function timeToSeconds(time) {
+  const parts = time.split(':');
+  const seconds = parts[2].split(',');
+  return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(seconds[0]) + Number(seconds[1]) / 1000;
+}
+
+function updateSubtitles() {
+  var player = document.getElementById('audioPlayer');
+  var subtitleDiv = document.getElementById('subtitle');
+  var currentTime = player.currentTime;
+  var activeFound = false;
+
+  subtitles.forEach((sub, index) => {
+  if (currentTime >= sub.start && currentTime < sub.end) {
+    const prevSub4 = index > 3 ? subtitles[index - 4].text : '';
+    const prevSub3 = index > 2 ? subtitles[index - 3].text : '';
+    const prevSub2 = index > 1 ? subtitles[index - 2].text : '';
+    const prevSub1 = index > 0 ? subtitles[index - 1].text : '';
+    const nextSub1 = index < subtitles.length - 1 ? subtitles[index + 1].text : '';
+    const nextSub2 = index < subtitles.length - 2 ? subtitles[index + 2].text : '';
+    const nextSub3 = index < subtitles.length - 3 ? subtitles[index + 3].text : '';
+    const nextSub4 = index < subtitles.length - 4 ? subtitles[index + 4].text : '';
+    subtitleDiv.innerHTML = `
+      <span class='inactive'>${prevSub4} </span>
+      <span class='inactive'>${prevSub3} </span>
+      <span class='inactive'>${prevSub2} </span>
+      <span class='inactive'>${prevSub1} </span>
+      <span class='active'>${sub.text} </span>
+      <span class='inactive'>${nextSub1} </span>
+      <span class='inactive'>${nextSub2} </span>
+      <span class='inactive'>${nextSub3} </span>
+      <span class='inactive'>${nextSub4}</span>`;
+    activeFound = true;
+  }
+});
+ 
+
+
+  if (!activeFound && subtitleDiv.innerHTML === "") {
+    subtitleDiv.innerHTML = `<div class='inactive'></div><div class='inactive'></div><div class='active'></div><div class='inactive'></div><div class='inactive'></div>`;
+  }
+}
+</script>
+</head>
+<body>
+<input type="file" id="fileInput" accept=".mp3,.srt" multiple onchange="loadMedia()">
+<audio id="audioPlayer" controls ontimeupdate="updateSubtitles()">
+  Your browser does not support the audio element.
+</audio>
+<div id="subtitle"></div>
+</body>
+</html>

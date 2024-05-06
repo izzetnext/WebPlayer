@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MP3 Player with Subtitles</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  #subtitle { color: #ff0000; font-size: 18px; margin-top: 20px; }
+</style>
+<script>
+function loadMedia() {
+  const fileInput = document.getElementById('fileInput');
+  const files = fileInput.files;
+  if (files.length === 0) return;
+
+  const audioFile = [...files].find(file => file.name.endsWith('.mp3'));
+  const subtitleFile = [...files].find(file => file.name.endsWith('.srt'));
+
+  if (audioFile) {
+    const audioPlayer = document.getElementById('audioPlayer');
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      audioPlayer.src = e.target.result;
+      audioPlayer.load();
+      audioPlayer.play();
+    };
+    reader.readAsDataURL(audioFile);
+  }
+
+  if (subtitleFile) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      window.subtitles = parseSubtitles(e.target.result);
+    };
+    reader.readAsText(subtitleFile);
+  }
+}
+
+function parseSubtitles(srt) {
+  const pattern = /(\d+)\r?\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\r?\n([\s\S]*?(?=\r?\n\r?\n|\r?\n*$))/g;
+  const subtitles = [];
+  let match;
+  while (match = pattern.exec(srt)) {
+    const start = timeToSeconds(match[2]);
+    const end = timeToSeconds(match[3]);
+    subtitles.push({ start, end, text: match[4].trim() });
+  }
+  return subtitles;
+}
+
+function timeToSeconds(time) {
+  const parts = time.split(':');
+  const seconds = parts[2].split(',');
+  return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(seconds[0]) + Number(seconds[1]) / 1000;
+}
+
+function updateSubtitles() {
+  var player = document.getElementById('audioPlayer');
+  var subtitleDiv = document.getElementById('subtitle');
+  var currentTime = player.currentTime;
+  subtitleDiv.textContent = ''; // Clear previous subtitle
+  subtitles.forEach(sub => {
+    if (currentTime >= sub.start && currentTime < sub.end) {
+      subtitleDiv.textContent = sub.text;
+    }
+  });
+}
+</script>
+</head>
+<body>
+<input type="file" id="fileInput" accept=".mp3,.srt" multiple onchange="loadMedia()">
+<audio id="audioPlayer" controls ontimeupdate="updateSubtitles()">
+  Your browser does not support the audio element.
+</audio>
+<div id="subtitle"></div>
+</body>
+</html>
